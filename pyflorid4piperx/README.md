@@ -17,3 +17,12 @@ from pyflorid4piperx import Arm, JointMIT
 
 The optional OpenCV recorder is included when CMake finds OpenCV and
 `BUILD_RECORDING` is enabled.
+
+Read-only clients that must not change firmware mode on shutdown should call:
+
+```python
+arm.set_disconnect_mode_change_enabled(False)
+```
+
+The default remains `True` so control clients retain the existing best-effort
+transition to Damp when the SDK object is destroyed.

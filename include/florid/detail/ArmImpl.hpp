@@ -122,6 +122,12 @@ public:
 
     // ── Connection ──
     bool isConnected() const { return m_connected.load(); }
+    bool disconnectModeChangeEnabled() const {
+        return m_disconnect_mode_change_enabled.load();
+    }
+    void setDisconnectModeChangeEnabled(bool s_enabled) {
+        m_disconnect_mode_change_enabled = s_enabled;
+    }
     ReconnectPolicy reconnectPolicy() const { return m_reconnect_policy; }
     void setReconnectPolicy(ReconnectPolicy s_p) { m_reconnect_policy = s_p; }
 
@@ -173,6 +179,7 @@ private:
 
     // ── Connection ──
     std::atomic<bool> m_connected{false};
+    std::atomic<bool> m_disconnect_mode_change_enabled{true};
     std::atomic<bool> m_running{false};
     ReconnectPolicy m_reconnect_policy{ReconnectPolicy::kThrow};
     std::chrono::milliseconds m_recv_timeout{50};

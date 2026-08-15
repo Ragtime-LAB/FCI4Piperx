@@ -87,9 +87,9 @@ ArmImpl::ArmImpl(std::unique_ptr<Transport> s_transport)
 ArmImpl::~ArmImpl() {
     m_running = false;
 
-    // Leave the device in its local position-hold mode before ending the
-    // session. Destructors must not throw, so this remains best-effort.
-    {
+    // Control clients default to local position-hold on disconnect. Read-only
+    // clients can explicitly opt out so observing state never changes mode.
+    if (m_disconnect_mode_change_enabled.load()) {
         fci::arm::SetArmModeRequestPacket s_req{};
         s_req.payload.mode = fci::arm::ArmMode::Damp;
         (void)m_session.request(s_req, 200);

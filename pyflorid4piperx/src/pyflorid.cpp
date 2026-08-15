@@ -117,6 +117,10 @@ PYBIND11_MODULE(_pyflorid, m) {
     arm.def("reconnect_policy",  &florid::Arm::reconnectPolicy);
     arm.def("set_reconnect_policy", &florid::Arm::setReconnectPolicy);
     arm.def("is_connected",      &florid::Arm::isConnected);
+    arm.def("disconnect_mode_change_enabled", &florid::Arm::disconnectModeChangeEnabled);
+    arm.def("set_disconnect_mode_change_enabled", &florid::Arm::setDisconnectModeChangeEnabled,
+            py::arg("enabled"),
+            "When false, destroying this Arm leaves the firmware mode unchanged.");
     arm.def("stop",              &florid::Arm::stop);
     arm.def("gripper", &florid::Arm::gripper, py::return_value_policy::reference);
     arm.def("start_joint_mit_control", &florid::Arm::startJointMITControl);

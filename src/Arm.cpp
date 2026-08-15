@@ -83,6 +83,12 @@ std::uint32_t Arm::firmwarePeriodUs() const { return m_impl->firmwarePeriodUs();
 ReconnectPolicy Arm::reconnectPolicy() const { return m_impl->reconnectPolicy(); }
 void Arm::setReconnectPolicy(ReconnectPolicy s_p) { m_impl->setReconnectPolicy(s_p); }
 bool Arm::isConnected() const { return m_impl->isConnected(); }
+bool Arm::disconnectModeChangeEnabled() const {
+    return m_impl->disconnectModeChangeEnabled();
+}
+void Arm::setDisconnectModeChangeEnabled(bool s_enabled) {
+    m_impl->setDisconnectModeChangeEnabled(s_enabled);
+}
 const fci::arm::DeviceInfo& Arm::deviceInfo() const { return m_impl->getDeviceInfo(); }
 
 } // namespace florid

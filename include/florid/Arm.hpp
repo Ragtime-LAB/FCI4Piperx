@@ -73,6 +73,8 @@ public:
     ReconnectPolicy reconnectPolicy() const;
     void setReconnectPolicy(ReconnectPolicy s_p);
     bool isConnected() const;
+    bool disconnectModeChangeEnabled() const;
+    void setDisconnectModeChangeEnabled(bool s_enabled);
     const fci::arm::DeviceInfo& deviceInfo() const;
 
 private:

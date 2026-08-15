@@ -30,6 +30,9 @@ ctest --test-dir build --output-on-failure      # single test: transport_pipelin
   without adding a specialization and their packet path in `detail/ArmImpl.hpp`.
 - **Arm mode via `SetArmModeRequest`**: `Arm::enable`→`Pc`, `drag`→`Drag`, `disable`→`Damp`.
   These act on **both arms** (no per-arm selection).
+- `ArmImpl` still defaults to requesting `Damp` on destruction for control-client safety. Pure
+  observers must call `setDisconnectModeChangeEnabled(false)` (Python:
+  `set_disconnect_mode_change_enabled(False)`) immediately after `Arm::create()`.
 - Clock source is `detail/MonotonicTickProvider` (`tick_std.cpp`); transport is `io_uring` over
   liburing when the kernel ≥ 5.15 (auto-detected), else epoll.
 

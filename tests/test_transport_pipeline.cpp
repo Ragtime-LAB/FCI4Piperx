@@ -124,6 +124,10 @@ void test_arm_status_roundtrip() {
     // Create ArmImpl — MockTransport auto-responds to GetDeviceInfoRequest
     ArmImpl s_impl(std::move(s_transport));
 
+    assert(s_impl.disconnectModeChangeEnabled());
+    s_impl.setDisconnectModeChangeEnabled(false);
+    assert(!s_impl.disconnectModeChangeEnabled());
+
     // Verify device info was fetched from mock response
     assert(s_impl.firmwarePeriodUs() == 4000);
     assert(s_impl.getDeviceInfo().protocol_version.major == 1);
