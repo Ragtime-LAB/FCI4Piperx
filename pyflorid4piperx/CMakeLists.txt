@@ -16,3 +16,8 @@ target_include_directories(_pyflorid PRIVATE
 )
 
 target_compile_features(_pyflorid PRIVATE cxx_std_20)
+
+install(TARGETS _pyflorid
+    LIBRARY DESTINATION pyflorid4piperx
+    RUNTIME DESTINATION pyflorid4piperx
+)

@@ -6,3 +6,4 @@ libfranka
 __pycache__
 *.cpython*
 build_*
+.venv/
