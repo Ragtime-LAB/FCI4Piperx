@@ -12,7 +12,7 @@ namespace florid {
 // ────────────────────────────────────────────────────────
 
 Duration ArmControl::firmwarePeriod() const {
-    return Duration::fromUSec(m_impl ? m_impl->m_fw_dt_us : 2000);
+    return Duration::fromUSec(m_impl ? m_impl->m_fw_dt_us : 4000);
 }
 
 Duration ArmControl::stateAge() const {

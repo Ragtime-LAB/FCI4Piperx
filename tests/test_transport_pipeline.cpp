@@ -125,7 +125,7 @@ void test_arm_status_roundtrip() {
     ArmImpl s_impl(std::move(s_transport));
 
     // Verify device info was fetched from mock response
-    assert(s_impl.firmwarePeriodUs() == 2000);
+    assert(s_impl.firmwarePeriodUs() == 4000);
     assert(s_impl.getDeviceInfo().protocol_version.major == 1);
     assert(s_impl.getDeviceInfo().fw_version.major == 2);
     assert(s_impl.getDeviceInfo().fw_version.minor == 3);
