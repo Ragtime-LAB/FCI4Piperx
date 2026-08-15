@@ -13,6 +13,7 @@ using ArmControlSession = StreamSession<
     SendTransport,
     fci::arm::ArmStatus,
     fci::arm::GripperStatus,
+    fci::arm::TriggerPacket,
     fci::arm::AckPacket,
     fci::arm::ArmControlModeRequestPacket,
     fci::arm::GripperControlModeRequestPacket,

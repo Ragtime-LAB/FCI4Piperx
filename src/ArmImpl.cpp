@@ -64,6 +64,12 @@ ArmImpl::ArmImpl(std::unique_ptr<Transport> s_transport)
         m_transport->send(s_data, s_size);
     });
 
+    m_session.on_packet([this](std::uint16_t s_cmd,
+                               std::span<const std::uint8_t> s_payload1,
+                               std::span<const std::uint8_t> s_payload2) {
+        s_onPacket(s_cmd, s_payload1, s_payload2);
+    });
+
     m_transport->setReceiveCallback(s_onPhysData, this);
 
     s_fetchDeviceInfo();
@@ -94,6 +100,24 @@ void ArmImpl::s_onPhysData(void* s_context, const std::uint8_t* s_data, std::siz
     s_self->s_feedBytes(s_data, s_size);
 }
 
+void ArmImpl::s_onPacket(std::uint16_t s_cmd,
+                         std::span<const std::uint8_t> s_payload1,
+                         std::span<const std::uint8_t> s_payload2) {
+    if (s_cmd != fci::arm::to_u16(fci::arm::Command::Trigger)) return;
+    if (s_payload1.size() + s_payload2.size() != sizeof(fci::arm::TriggerPacket)) return;
+
+    fci::arm::TriggerPacket s_trigger{};
+    auto* s_dst = reinterpret_cast<std::uint8_t*>(&s_trigger);
+    std::memcpy(s_dst, s_payload1.data(), s_payload1.size());
+    std::memcpy(s_dst + s_payload1.size(), s_payload2.data(), s_payload2.size());
+
+    recording::TriggerEvent s_event;
+    s_event.seq_id = s_trigger.seq_id;
+    s_event.timestamp_mcu_us = s_trigger.timestamp_us;
+    s_event.receive_host_us = detail::s_nowUs();
+    (void)m_trigger_queue.enqueue(s_event);
+}
+
 void ArmImpl::s_feedBytes(const std::uint8_t* s_data, std::size_t s_size) {
     auto s_result = m_session.receive(s_data, s_size);
     if (!s_result) return;
@@ -102,6 +126,16 @@ void ArmImpl::s_feedBytes(const std::uint8_t* s_data, std::size_t s_size) {
     if (s_status.seq != m_last_status_seq) {
         m_last_status_seq = s_status.seq;
         m_latency.markReceived(s_status.last_sdk_timestamp_us, detail::s_nowUs());
+        recording::TimedArmSample s_sample;
+        s_sample.timestamp_mcu_us = s_status.timestamp_us;
+        s_sample.seq = s_status.seq;
+        for (std::size_t s_i = 0; s_i < s_sample.q.size(); ++s_i) {
+            s_sample.q[s_i] = s_status.status.q[s_i];
+            s_sample.dq[s_i] = s_status.status.dq[s_i];
+        }
+        for (std::size_t s_i = 0; s_i < s_sample.gripper_q.size(); ++s_i)
+            s_sample.gripper_q[s_i] = s_status.gripper.q[s_i];
+        m_timeline.push(s_sample);
         if (!m_rx_queue.enqueue(s_status)) return;
         m_data_ready.release();
     }
@@ -166,6 +200,17 @@ ArmState ArmImpl::readOnce() {
     fci::arm::ArmStatus s_raw;
     if (!m_rx_queue.try_dequeue(s_raw)) return ArmState{};
     return s_convertStatus(s_raw);
+}
+
+std::optional<recording::TriggerEvent> ArmImpl::readTriggerOnce() {
+    recording::TriggerEvent s_event;
+    if (!m_trigger_queue.try_dequeue(s_event)) return std::nullopt;
+    return s_event;
+}
+
+std::optional<recording::InterpolatedState>
+ArmImpl::interpolateAt(std::uint64_t s_timestamp_mcu_us) const {
+    return m_timeline.interpolate(s_timestamp_mcu_us);
 }
 
 // ────────────────────────────────────────────────────────

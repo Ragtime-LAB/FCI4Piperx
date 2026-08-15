@@ -3,6 +3,8 @@
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 
+#include <cstring>
+
 #include "florid/Arm.hpp"
 #include "florid/ArmState.hpp"
 #include "florid/ArmControl.hpp"
@@ -11,6 +13,10 @@
 #include "florid/Exceptions.hpp"
 
 #include "fci_protocol/arm/constants.hpp"
+
+#ifdef FLORID_HAS_RECORDING
+#include "florid/recording/OpenCvRecorder.hpp"
+#endif
 
 namespace py = pybind11;
 
@@ -103,6 +109,10 @@ PYBIND11_MODULE(_pyflorid, m) {
     arm.def("drag",              &florid::Arm::drag);
     arm.def("disable",           &florid::Arm::disable);
     arm.def("read_once",         &florid::Arm::readOnce);
+#ifdef FLORID_HAS_RECORDING
+    arm.def("read_trigger_once", &florid::Arm::readTriggerOnce);
+    arm.def("interpolate_at",    &florid::Arm::interpolateAt);
+#endif
     arm.def("firmware_period_us", &florid::Arm::firmwarePeriodUs);
     arm.def("reconnect_policy",  &florid::Arm::reconnectPolicy);
     arm.def("set_reconnect_policy", &florid::Arm::setReconnectPolicy);
@@ -115,4 +125,77 @@ PYBIND11_MODULE(_pyflorid, m) {
     bind_control_types(m);
     bind_active_control(m);
     bind_gripper(m);
+
+#ifdef FLORID_HAS_RECORDING
+    py::enum_<florid::recording::InterpolatedState::Status>(m, "InterpolationStatus")
+        .value("Exact", florid::recording::InterpolatedState::Status::Exact)
+        .value("Interpolated", florid::recording::InterpolatedState::Status::Interpolated)
+        .value("Gap", florid::recording::InterpolatedState::Status::Gap)
+        .value("OutOfRange", florid::recording::InterpolatedState::Status::OutOfRange);
+
+    py::class_<florid::recording::CameraConfig>(m, "CameraConfig")
+        .def(py::init<>())
+        .def_readwrite("slot", &florid::recording::CameraConfig::slot)
+        .def_readwrite("device", &florid::recording::CameraConfig::device)
+        .def_readwrite("width", &florid::recording::CameraConfig::width)
+        .def_readwrite("height", &florid::recording::CameraConfig::height)
+        .def_readwrite("fps", &florid::recording::CameraConfig::fps)
+        .def_readwrite("hardware_trigger", &florid::recording::CameraConfig::hardware_trigger);
+
+    py::class_<florid::recording::InterpolatedState>(m, "InterpolatedState")
+        .def_readonly("timestamp_mcu_us", &florid::recording::InterpolatedState::timestamp_mcu_us)
+        .def_readonly("sample_before_us", &florid::recording::InterpolatedState::sample_before_us)
+        .def_readonly("sample_after_us", &florid::recording::InterpolatedState::sample_after_us)
+        .def_readonly("alpha", &florid::recording::InterpolatedState::alpha)
+        .def_readonly("status", &florid::recording::InterpolatedState::status)
+        .def_property_readonly("q", [](const florid::recording::InterpolatedState& state) {
+            py::array_t<float> result(state.q.size());
+            std::memcpy(result.mutable_data(), state.q.data(), sizeof(float) * state.q.size());
+            return result;
+        })
+        .def_property_readonly("dq", [](const florid::recording::InterpolatedState& state) {
+            py::array_t<float> result(state.dq.size());
+            std::memcpy(result.mutable_data(), state.dq.data(), sizeof(float) * state.dq.size());
+            return result;
+        })
+        .def_property_readonly("gripper_q", [](const florid::recording::InterpolatedState& state) {
+            py::array_t<float> result(state.gripper_q.size());
+            std::memcpy(result.mutable_data(), state.gripper_q.data(), sizeof(float) * state.gripper_q.size());
+            return result;
+        });
+
+    py::class_<florid::recording::TriggerEvent>(m, "TriggerEvent")
+        .def_readonly("seq_id", &florid::recording::TriggerEvent::seq_id)
+        .def_readonly("timestamp_mcu_us", &florid::recording::TriggerEvent::timestamp_mcu_us)
+        .def_readonly("receive_host_us", &florid::recording::TriggerEvent::receive_host_us);
+
+    py::class_<florid::recording::AlignedRecord>(m, "AlignedRecord")
+        .def_readonly("camera_slot", &florid::recording::AlignedRecord::camera_slot)
+        .def_readonly("trigger_seq", &florid::recording::AlignedRecord::trigger_seq)
+        .def_readonly("t_trigger_mcu_us", &florid::recording::AlignedRecord::t_trigger_mcu_us)
+        .def_readonly("t_trigger_host_us", &florid::recording::AlignedRecord::t_trigger_host_us)
+        .def_readonly("t_frame_host_us", &florid::recording::AlignedRecord::t_frame_host_us)
+        .def_readonly("frame_index", &florid::recording::AlignedRecord::frame_index)
+        .def_readonly("image_width", &florid::recording::AlignedRecord::image_width)
+        .def_readonly("image_height", &florid::recording::AlignedRecord::image_height)
+        .def_readonly("has_state", &florid::recording::AlignedRecord::has_state)
+        .def_readonly("state", &florid::recording::AlignedRecord::state)
+        .def_property_readonly("image_bgr", [](const florid::recording::AlignedRecord& record) {
+            py::array_t<std::uint8_t> result(std::vector<py::ssize_t>{
+                static_cast<py::ssize_t>(record.image_height),
+                static_cast<py::ssize_t>(record.image_width), 3});
+            if (!record.image_bgr.empty()) {
+                std::memcpy(result.mutable_data(), record.image_bgr.data(), record.image_bgr.size());
+            }
+            return result;
+        });
+
+    py::class_<florid::recording::OpenCvRecorder>(m, "OpenCvRecorder")
+        .def(py::init<florid::Arm&, std::size_t>(), py::arg("arm"), py::arg("queue_capacity") = 64)
+        .def("start", &florid::recording::OpenCvRecorder::start)
+        .def("stop", &florid::recording::OpenCvRecorder::stop)
+        .def("running", &florid::recording::OpenCvRecorder::running)
+        .def("read_once", &florid::recording::OpenCvRecorder::readOnce)
+        .def("dropped_records", &florid::recording::OpenCvRecorder::droppedRecords);
+#endif
 }

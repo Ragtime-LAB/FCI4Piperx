@@ -53,6 +53,15 @@ ArmState Arm::readOnce() {
     return m_impl->readOnce();
 }
 
+std::optional<recording::TriggerEvent> Arm::readTriggerOnce() {
+    return m_impl->readTriggerOnce();
+}
+
+std::optional<recording::InterpolatedState>
+Arm::interpolateAt(std::uint64_t s_timestamp_mcu_us) const {
+    return m_impl->interpolateAt(s_timestamp_mcu_us);
+}
+
 // ── Active control ──
 
 std::unique_ptr<ActiveControl<JointMIT>> Arm::startJointMITControl() {

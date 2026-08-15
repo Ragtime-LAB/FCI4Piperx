@@ -12,3 +12,9 @@ __all__ = [
     "Exception", "NetworkException", "ControlException",
     "CommandException", "InvalidOperationException", "RealtimeException",
 ]
+
+if "OpenCvRecorder" in globals():
+    __all__ += [
+        "CameraConfig", "OpenCvRecorder", "AlignedRecord", "TriggerEvent",
+        "InterpolatedState", "InterpolationStatus",
+    ]

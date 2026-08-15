@@ -10,6 +10,7 @@
 #include "florid/detail/Transport.hpp"
 #include "florid/detail/TickProvider.hpp"
 #include "florid/detail/LatencyEstimator.hpp"
+#include "florid/recording/Timeline.hpp"
 
 #include "fci_protocol/session/arm_control_session.hpp"
 #include "fci_protocol/transport/byte_stream_transport.hpp"
@@ -28,6 +29,7 @@
 #include <chrono>
 #include <mutex>
 #include <thread>
+#include <span>
 namespace florid {
 
 class ArmImpl {
@@ -51,6 +53,9 @@ public:
 
     // ── Arm state ──
     ArmState readOnce();
+    std::optional<recording::TriggerEvent> readTriggerOnce();
+    std::optional<recording::InterpolatedState> interpolateAt(
+        std::uint64_t s_timestamp_mcu_us) const;
     ArmControl& controlHandle() { return m_arm_control; }
 
     // ── Control loop (template, called from Arm) ──
@@ -145,6 +150,9 @@ public:
 
 private:
     void s_feedBytes(const std::uint8_t* s_data, std::size_t s_size);
+    void s_onPacket(std::uint16_t s_cmd,
+                    std::span<const std::uint8_t> s_payload1,
+                    std::span<const std::uint8_t> s_payload2);
     void s_fetchDeviceInfo();
     void s_requestPcMode();
 
@@ -155,6 +163,7 @@ private:
 
     // ── SPSC queue ──
     moodycamel::ReaderWriterQueue<fci::arm::ArmStatus> m_rx_queue{64};
+    moodycamel::ReaderWriterQueue<recording::TriggerEvent> m_trigger_queue{128};
     std::counting_semaphore<65536> m_data_ready{0};
     std::uint32_t m_last_status_seq{0};
 
@@ -174,6 +183,7 @@ private:
     std::atomic<bool> m_reconnecting{false};
     std::atomic<bool> m_stop_flag{false};
     detail::LatencyEstimator m_latency;
+    recording::AngleTimeline m_timeline;
 
     friend class ArmControl;
 };

@@ -8,6 +8,7 @@
 #include "florid/Errors.hpp"
 #include "florid/core/ActiveControl.hpp"
 #include "florid/Gripper.hpp"
+#include "florid/recording/Timeline.hpp"
 
 #include "fci_protocol/arm/constants.hpp"
 #include "fci_protocol/arm/device_info.hpp"
@@ -42,6 +43,9 @@ public:
     // ── State reading ──
 
     ArmState readOnce();
+    std::optional<recording::TriggerEvent> readTriggerOnce();
+    std::optional<recording::InterpolatedState> interpolateAt(
+        std::uint64_t timestamp_mcu_us) const;
 
     template <typename Callable>
     void read(Callable&& s_cb) {
