@@ -12,7 +12,7 @@ namespace florid {
 // ────────────────────────────────────────────────────────
 
 Duration ArmControl::firmwarePeriod() const {
-    return Duration::fromUSec(m_impl ? m_impl->m_fw_dt_us : 4000);
+    return Duration::fromUSec(m_impl ? m_impl->m_fw_dt_us : 10000);
 }
 
 Duration ArmControl::stateAge() const {
@@ -86,6 +86,14 @@ ArmImpl::ArmImpl(std::unique_ptr<Transport> s_transport)
 
 ArmImpl::~ArmImpl() {
     m_running = false;
+
+    // Leave the device in its local position-hold mode before ending the
+    // session. Destructors must not throw, so this remains best-effort.
+    {
+        fci::arm::SetArmModeRequestPacket s_req{};
+        s_req.payload.mode = fci::arm::ArmMode::Damp;
+        (void)m_session.request(s_req, 200);
+    }
 
     // ── Lifecycle: notify firmware SDK disconnected (best-effort) ──
     {

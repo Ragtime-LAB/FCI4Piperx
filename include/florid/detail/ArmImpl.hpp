@@ -169,7 +169,7 @@ private:
 
     // ── Cached DeviceInfo ──
     fci::arm::DeviceInfo m_device_info{};
-    std::uint32_t m_fw_dt_us{4000}; // 250 Hz
+    std::uint32_t m_fw_dt_us{10000}; // 100 Hz
 
     // ── Connection ──
     std::atomic<bool> m_connected{false};

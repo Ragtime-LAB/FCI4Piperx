@@ -35,18 +35,28 @@ int main(int s_argc, char** s_argv) {
     printf("Connected. fw_dt=%u us\n\n", s_arm->firmwarePeriodUs());
 
     // Control loop: sinusoidal motion per joint
-    printf("Starting joint sine motion on joint 1 (kp=10.0, kd=0.2, 0→+0.3 rad)\n");
+    printf("Starting joint sine motion on joint 2 (kp=10.0, kd=0.2, current→current+0.3 rad)\n");
 
     auto s_start_time = std::chrono::steady_clock::now();
     int s_frame_count = 0;
+    float s_initial_q[12]{};
+    bool s_have_initial_q = false;
 
-    s_arm->control([&](const florid::ArmState&,
+    s_arm->control([&](const florid::ArmState& s_state,
                         florid::ArmControl& s_ctrl) -> florid::JointMIT
     {
         constexpr float g_kp = 10.0f;
         constexpr float g_kd = 0.2f;
 
         auto s_now = std::chrono::steady_clock::now();
+        if (!s_have_initial_q) {
+            for (int s_i = 0; s_i < 12; ++s_i) {
+                s_initial_q[s_i] = s_state.m_q[s_i];
+            }
+            s_start_time = s_now;
+            s_have_initial_q = true;
+        }
+
         double s_t = std::chrono::duration<double>(s_now - s_start_time).count();
         if (s_t < 0.0) s_t = 0.0;
 
@@ -65,11 +75,11 @@ int main(int s_argc, char** s_argv) {
         s_cmd.m_firmware_gravity = true; // firmware computes gravity
 
         for (int s_i = 0; s_i < 12; ++s_i) {
-            float s_target = 0.0f;
-            if (s_i == 1) {
-                s_target = 0.3f * static_cast<float>(0.5 - 0.5 * std::cos(s_t * 1.5));
-                if (s_target < 0.0f) s_target = 0.0f;
-                if (s_target > 0.3f) s_target = 0.3f;
+            float s_target = s_initial_q[s_i];
+      if (s_i == 1 || s_i == 7) {
+                const float s_offset = 0.3f * static_cast<float>(
+                    0.5 - 0.5 * std::cos(s_t * 1.5));
+                s_target += s_offset;
             }
 
             s_cmd.m_q[s_i]  = static_cast<float>(s_target);
