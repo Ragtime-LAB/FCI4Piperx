@@ -131,7 +131,6 @@ struct JointMITCommandPacket {
     float tau[kDualJointCount];
     float kp[kDualJointCount];
     float kd[kDualJointCount];
-    std::uint32_t dt_us;
     std::uint16_t seq;
     std::uint8_t control_mode;
     std::uint64_t sdk_timestamp_us; // host monotonic timestamp when packet was sent
@@ -143,7 +142,6 @@ struct GripperCommandPacket {
     float tau[kGripperCount];
     float kp[kGripperCount];
     float kd[kGripperCount];
-    std::uint32_t dt_us;
     std::uint16_t seq;
     std::uint8_t control_mode;
     std::uint64_t sdk_timestamp_us;

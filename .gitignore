@@ -1,0 +1,8 @@
+build
+cmake-build*
+.cache
+backup
+libfranka
+__pycache__
+*.cpython*
+build_*

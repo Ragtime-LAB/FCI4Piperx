@@ -1,0 +1,100 @@
+#include "florid/Arm.hpp"
+#include "florid/detail/AstrialUSBTransport.hpp"
+
+#include <atomic>
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <thread>
+
+static std::atomic<bool> g_running{true};
+
+static const char* s_modeName(std::uint32_t s_mode) {
+    switch (static_cast<fci::arm::ArmMode>(s_mode)) {
+        case fci::arm::ArmMode::Pc:  return "PC";
+        case fci::arm::ArmMode::Drag: return "DRAG";
+        case fci::arm::ArmMode::Damp: return "DAMP";
+        default: return "??";
+    }
+}
+
+void s_signalHandler(int) {
+    g_running = false;
+}
+
+void s_printUsage(const char* s_prog) {
+    fprintf(stderr, "Usage: %s <usb_device>  (e.g. %s /dev/ttyACM0)\n", s_prog, s_prog);
+    exit(1);
+}
+
+int main(int s_argc, char** s_argv) {
+    if (s_argc < 2) s_printUsage(s_argv[0]);
+
+    std::string s_uri = "usb://";
+    s_uri += s_argv[1];
+
+    signal(SIGINT, s_signalHandler);
+    signal(SIGTERM, s_signalHandler);
+
+    // ── List available USB devices ──
+    printf("=== USB Devices ===\n");
+    auto s_devices = florid::AstrialUSBTransport::listDevices();
+    for (const auto& s_d : s_devices) {
+        printf("  %-20s %04X:%04X  %s\n",
+               s_d.m_port_name.c_str(), s_d.m_vendor_id, s_d.m_product_id,
+               s_d.m_description.c_str());
+    }
+    printf("\n");
+
+    // ── Connect ──
+    printf("Connecting to %s ...\n", s_uri.c_str());
+    auto s_arm = florid::Arm::create(s_uri);
+    if (!s_arm) {
+        fprintf(stderr, "Failed to create Arm (unknown URI scheme).\n");
+        return 1;
+    }
+
+    printf("Connected. Firmware period: %u us (%.1f Hz)\n",
+           s_arm->firmwarePeriodUs(),
+           1e6 / s_arm->firmwarePeriodUs());
+
+    // ── Device info ──
+    const auto& s_info = s_arm->deviceInfo();
+    printf("Device info:\n");
+    printf("  Board:        %s\n", s_info.board_name.data());
+    printf("  Custom name:  %s\n", s_info.custom_name.data());
+    printf("  FW version:   %u.%u.%u\n",
+           s_info.fw_version.major, s_info.fw_version.minor, s_info.fw_version.patch);
+    printf("  Protocol ver: %u.%u.%u\n",
+           s_info.protocol_version.major, s_info.protocol_version.minor, s_info.protocol_version.patch);
+    printf("  FW type:      %d\n", s_info.fw_type);
+    printf("\n");
+
+    // ── Echo state ──
+    printf("\n=== Arm State Stream ===\n");
+    printf(" seq  | ARM1: q0..q5 | ARM2: q6..q11 |  mode  | errs\n");
+    printf("------|--------------|---------------|--------|------\n");
+
+    int s_count = 0;
+    s_arm->read([&](const florid::ArmState& s_state) {
+        if (s_state.m_seq == 0) return g_running.load();
+
+        printf("%5u | %+6.3f %+6.3f %+6.3f %+6.3f %+6.3f %+6.3f |"
+               " %+6.3f %+6.3f %+6.3f %+6.3f %+6.3f %+6.3f |"
+               " %-6s | 0x%02X\n",
+               s_state.m_seq,
+               s_state.m_q[0], s_state.m_q[1], s_state.m_q[2],
+               s_state.m_q[3], s_state.m_q[4], s_state.m_q[5],
+               s_state.m_q[6], s_state.m_q[7], s_state.m_q[8],
+               s_state.m_q[9], s_state.m_q[10], s_state.m_q[11],
+               s_modeName(s_state.m_mode), s_state.m_errors);
+
+        s_count++;
+        if (s_count >= 200 || !g_running) return false;
+        return true;
+    });
+
+    printf("Done. Read %d frames.\n", s_count);
+    return 0;
+}

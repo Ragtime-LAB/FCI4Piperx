@@ -64,7 +64,6 @@ struct ControlModeCommand {
 struct JointCommand {
     PcControlKind control_kind{PcControlKind::None};
     std::uint8_t flags{0};
-    std::uint16_t dt_us{0};
     std::array<float, 12> q{};
     std::array<float, 12> dq{};
     std::array<float, 12> tau{};

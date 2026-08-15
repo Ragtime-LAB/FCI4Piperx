@@ -1,0 +1,22 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.13", "numpy>=2.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pyflorid4piperx"
+version = "0.1.0"
+description = "Python bindings for dual-Piperx arm control SDK"
+authors = [{ name = "Ragtime" }]
+license = { text = "ISC" }
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=2.0"]
+
+[tool.scikit-build]
+cmake.source-dir = ".."
+cmake.args = [
+    "-DBUILD_PYFLORID=ON",
+    "-DBUILD_TESTS=OFF",
+    "-DBUILD_EXAMPLES=OFF"
+]
+wheel.packages = ["pyflorid4piperx"]
