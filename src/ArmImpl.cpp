@@ -64,12 +64,6 @@ ArmImpl::ArmImpl(std::unique_ptr<Transport> s_transport)
         m_transport->send(s_data, s_size);
     });
 
-    m_session.on_packet([this](std::uint16_t s_cmd,
-                               std::span<const std::uint8_t> s_payload1,
-                               std::span<const std::uint8_t> s_payload2) {
-        s_onPacket(s_cmd, s_payload1, s_payload2);
-    });
-
     m_transport->setReceiveCallback(s_onPhysData, this);
 
     s_fetchDeviceInfo();
@@ -78,7 +72,7 @@ ArmImpl::ArmImpl(std::unique_ptr<Transport> s_transport)
     {
         fci::arm::SdkClientConnectedRequestPacket s_req{};
         s_req.payload.dummy = 0;
-        m_session.request(s_req, 50);
+        (void)m_session.request(s_req, 50);
     }
 
     m_connected = true;
@@ -99,7 +93,7 @@ ArmImpl::~ArmImpl() {
     {
         fci::arm::SdkClientDisconnectedRequestPacket s_req{};
         s_req.payload.dummy = 0;
-        m_session.request(s_req, 20);
+        (void)m_session.request(s_req, 20);
     }
 }
 
@@ -108,17 +102,15 @@ void ArmImpl::s_onPhysData(void* s_context, const std::uint8_t* s_data, std::siz
     s_self->s_feedBytes(s_data, s_size);
 }
 
-void ArmImpl::s_onPacket(std::uint16_t s_cmd,
-                         std::span<const std::uint8_t> s_payload1,
-                         std::span<const std::uint8_t> s_payload2) {
-    if (s_cmd != fci::arm::to_u16(fci::arm::Command::Trigger)) return;
-    if (s_payload1.size() + s_payload2.size() != sizeof(fci::arm::TriggerPacket)) return;
+void ArmImpl::s_pollTrigger() {
+    auto& s_deserializer = m_session.deserializer();
+    const auto s_version =
+        s_deserializer.version<fci::arm::TriggerPacket>();
+    if (s_version == m_last_trigger_version) return;
 
-    fci::arm::TriggerPacket s_trigger{};
-    auto* s_dst = reinterpret_cast<std::uint8_t*>(&s_trigger);
-    std::memcpy(s_dst, s_payload1.data(), s_payload1.size());
-    std::memcpy(s_dst + s_payload1.size(), s_payload2.data(), s_payload2.size());
-
+    m_last_trigger_version = s_version;
+    const auto s_trigger =
+        s_deserializer.get<fci::arm::TriggerPacket>();
     recording::TriggerEvent s_event;
     s_event.seq_id = s_trigger.seq_id;
     s_event.timestamp_mcu_us = s_trigger.timestamp_us;
@@ -129,6 +121,8 @@ void ArmImpl::s_onPacket(std::uint16_t s_cmd,
 void ArmImpl::s_feedBytes(const std::uint8_t* s_data, std::size_t s_size) {
     auto s_result = m_session.receive(s_data, s_size);
     if (!s_result) return;
+
+    s_pollTrigger();
 
     auto s_status = m_session.deserializer().get<fci::arm::ArmStatus>();
     if (s_status.seq != m_last_status_seq) {

@@ -2,6 +2,7 @@
 #include "florid/detail/AstrialUSBTransport.hpp"
 
 #include <atomic>
+#include <cmath>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -9,6 +10,22 @@
 #include <thread>
 
 static std::atomic<bool> g_running{true};
+
+struct s_EndEffectorPose {
+    double x, y, z, rx, ry, rz;
+};
+
+// Column-major 4x4 homogenous transform, per arm 16 floats.
+s_EndEffectorPose s_poseFromMatrix(const float* m) {
+    s_EndEffectorPose p;
+    p.x  = m[12];
+    p.y  = m[13];
+    p.z  = m[14];
+    p.rx = std::atan2(m[6], m[10]);
+    p.ry = std::atan2(-m[2], std::sqrt(m[6] * m[6] + m[10] * m[10]));
+    p.rz = std::atan2(m[4], m[0]);
+    return p;
+}
 
 static const char* s_modeName(std::uint32_t s_mode) {
     switch (static_cast<fci::arm::ArmMode>(s_mode)) {
@@ -73,10 +90,9 @@ int main(int s_argc, char** s_argv) {
 
     // ── Echo state ──
     printf("\n=== Arm State Stream ===\n");
-    printf(" seq  | ARM1: q0..q5 | ARM2: q6..q11 |  mode  | errs\n");
-    printf("------|--------------|---------------|--------|------\n");
+    printf(" seq  | ARM1: q0..q5         | ARM2: q6..q11        |  mode  | errs\n");
+    printf("------|-----------------------|----------------------|--------|------\n");
 
-    int s_count = 0;
     s_arm->read([&](const florid::ArmState& s_state) {
         if (s_state.m_seq == 0) return g_running.load();
 
@@ -90,11 +106,16 @@ int main(int s_argc, char** s_argv) {
                s_state.m_q[9], s_state.m_q[10], s_state.m_q[11],
                s_modeName(s_state.m_mode), s_state.m_errors);
 
-        s_count++;
-        if (s_count >= 200 || !g_running) return false;
-        return true;
+        const s_EndEffectorPose s_p1 = s_poseFromMatrix(&s_state.m_O_T_EE[0]);
+        const s_EndEffectorPose s_p2 = s_poseFromMatrix(&s_state.m_O_T_EE[16]);
+        printf("   P1: x %+7.3f y %+7.3f z %+7.3f | RPY %+7.3f %+7.3f %+7.3f |"
+               " P2: x %+7.3f y %+7.3f z %+7.3f | RPY %+7.3f %+7.3f %+7.3f\n",
+               s_p1.x, s_p1.y, s_p1.z, s_p1.rx, s_p1.ry, s_p1.rz,
+               s_p2.x, s_p2.y, s_p2.z, s_p2.rx, s_p2.ry, s_p2.rz);
+
+        return g_running.load();
     });
 
-    printf("Done. Read %d frames.\n", s_count);
+    printf("\nStopped (signal received).\n");
     return 0;
 }

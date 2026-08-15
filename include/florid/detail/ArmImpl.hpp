@@ -156,9 +156,7 @@ public:
 
 private:
     void s_feedBytes(const std::uint8_t* s_data, std::size_t s_size);
-    void s_onPacket(std::uint16_t s_cmd,
-                    std::span<const std::uint8_t> s_payload1,
-                    std::span<const std::uint8_t> s_payload2);
+    void s_pollTrigger();
     void s_fetchDeviceInfo();
     void s_requestPcMode();
 
@@ -172,6 +170,7 @@ private:
     moodycamel::ReaderWriterQueue<recording::TriggerEvent> m_trigger_queue{128};
     std::counting_semaphore<65536> m_data_ready{0};
     std::uint32_t m_last_status_seq{0};
+    std::uint32_t m_last_trigger_version{0};
 
     // ── Cached DeviceInfo ──
     fci::arm::DeviceInfo m_device_info{};
