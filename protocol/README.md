@@ -30,6 +30,18 @@ Upgrade control notes:
 - this tree now only carries boot status, upgrade-mode switch, and reboot
   control packets; image upload is handled elsewhere
 
+Arm telemetry & trigger notes (`fci_protocol/arm/packets.hpp`):
+- `ArmStatus` carries `timestamp_us` (u64, microseconds) plus per-arm joint /
+  gripper state and end-effector pose. `timestamp_us` is the MCU cycle-based
+  time at which the status snapshot was produced.
+- `TriggerPacket` is an unsolicited notification emitted at a fixed rate
+  (30 Hz) by the trigger thread. It carries:
+  - `timestamp_us` (u64, microseconds): MCU cycle-based timestamp captured when
+    the GPIO trigger pulse fired high
+  - `seq_id` (u16): monotonically increasing sequence counter per pulse
+- Both are `PackageCategory::Notification` fire-and-forget packets on the RPL
+  byte-stream link.
+
 Zephyr module support:
 - `zephyr/module.yml` exposes this repository as a standard Zephyr module
 - `zephyr/Kconfig` gates the library behind `CONFIG_FCI_PROTOCOL`

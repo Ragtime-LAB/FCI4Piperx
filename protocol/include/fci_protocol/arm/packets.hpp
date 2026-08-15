@@ -36,6 +36,14 @@ struct GripperStatus {
     std::array<float, kGripperCount> tau;
 };
 
+// Hardware trigger pulse (firmware → host, notification). Emitted at a fixed
+// rate (30 Hz) by the trigger thread; timestamp_us is the MCU cycle-based
+// timestamp captured when the GPIO pulse fires, seq_id increments per pulse.
+struct TriggerPacket {
+    std::uint64_t timestamp_us;
+    std::uint16_t seq_id;
+};
+
 struct ArmStatus {
     ArmMode mode;
     std::uint32_t seq;
@@ -169,6 +177,15 @@ struct PacketTraits<fci::arm::GripperStatus>
     : PacketTraitsBase<PacketTraits<fci::arm::GripperStatus>> {
     static constexpr std::uint16_t cmd = fci::arm::to_u16(fci::arm::Command::GripperStatus);
     static constexpr std::size_t size = sizeof(fci::arm::GripperStatus);
+    using Protocol = USBBaseProto;
+    static constexpr PacketCategory category = PacketCategory::Notification;
+};
+
+template <>
+struct PacketTraits<fci::arm::TriggerPacket>
+    : PacketTraitsBase<PacketTraits<fci::arm::TriggerPacket>> {
+    static constexpr std::uint16_t cmd = fci::arm::to_u16(fci::arm::Command::Trigger);
+    static constexpr std::size_t size = sizeof(fci::arm::TriggerPacket);
     using Protocol = USBBaseProto;
     static constexpr PacketCategory category = PacketCategory::Notification;
 };

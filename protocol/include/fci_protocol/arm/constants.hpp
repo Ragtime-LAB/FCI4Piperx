@@ -16,6 +16,7 @@ namespace fci::arm
         // ── Telemetry (firmware → host, notification) ──
         ArmStatus = 0x6001,
         GripperStatus = 0x6003,
+        Trigger = 0x6004,
 
         // ── Ack ──
         Ack = 0x6FF0,
