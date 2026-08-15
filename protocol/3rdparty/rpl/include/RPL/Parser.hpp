@@ -22,7 +22,6 @@
 #include <array>
 #include <bit>
 #include <cstring>
-#include <functional>
 #include <optional>
 #include <tl/expected.hpp>
 #include <tuple>
@@ -399,14 +398,7 @@ template <typename... Args> class Parser {
   [[no_unique_address]] MonitorType monitor_{};
 
 public:
-  using PacketCallback = std::function<void(
-      uint16_t, std::span<const uint8_t>, std::span<const uint8_t>)>;
-
   explicit Parser(DeserializerType &des) : deserializer(des) {}
-
-  void set_packet_callback(PacketCallback callback) {
-    packet_callback_ = std::move(callback);
-  }
 
   /**
    * @brief 获取连接监控器引用
@@ -690,9 +682,6 @@ private:
     }
 
     bool skip_pool = false;
-    if (packet_callback_) {
-      packet_callback_(cmd_id, payload_s1, payload_s2);
-    }
     Details::PacketDispatcher<DeserializerType,
                               typename Extracted::Packets>::dispatch(
         cmd_id, payload_s1, payload_s2, deserializer, skip_pool);
@@ -705,8 +694,6 @@ private:
     buffer.discard(total_len);
     return ParseResult::Success;
   }
-
-  PacketCallback packet_callback_{};
 };
 
 } // namespace RPL

@@ -6,7 +6,6 @@
 #include "RPL/Serializer.hpp"
 #include "RPL/Utils/AckManager.hpp"
 #include <cstdint>
-#include <functional>
 #include <tl/expected.hpp>
 
 namespace RPL {
@@ -41,12 +40,6 @@ public:
   void on_send(SendFunc cb) {
     send_cb_ = std::move(cb);
     has_send_ = true;
-  }
-
-  using PacketCallback = typename Parser<Packets...>::PacketCallback;
-
-  void on_packet(PacketCallback callback) {
-    parser_.set_packet_callback(std::move(callback));
   }
 
   bool has_send() const { return has_send_; }
